@@ -40,22 +40,14 @@ describe Oystercard do
         change { subject.in_journey? }.from(false).to(true)
     end
 
-    it 'does not show an exit station after touching in' do
-      add_top_up_money
-      subject.touch_in(:station)
-      subject.touch_out(:station)
-      subject.touch_in(:station)
-      expect(subject.exit_station).to eq nil
-    end
-
     it 'does not allow touching in if balance is below the minimum level' do
       expect { subject.touch_in(:station) }.to raise_error 'Insufficient funds'
     end
 
-    it 'shows the station where the card was touched in' do
+    it 'updates the journey history to record the entry station' do
       add_top_up_money
       subject.touch_in(:station)
-      expect(subject.entry_station).to eq :station
+      expect(subject.journey_history.last[:entry_station]).to eq :station
     end
   end
 
@@ -73,18 +65,11 @@ describe Oystercard do
       expect { subject.touch_out(:station) }.to change { subject.balance }.by(-min_balance)
     end
 
-    it 'it forgets the entry station when the card is touched out'do
-      add_top_up_money
-      subject.touch_in(:station)
-      subject.touch_out(:station)
-      expect(subject.entry_station).to eq nil
-    end
-
     it 'stores the exit station when touched out' do
       add_top_up_money
       subject.touch_in(:station)
       subject.touch_out(:station)
-      expect(subject.exit_station).to eq :station
+      expect(subject.journey_history.last[:exit_station]).to eq :station
     end
   end
 end
