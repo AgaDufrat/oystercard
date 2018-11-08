@@ -1,8 +1,10 @@
 # frozen_string_literal: true
+require_relative 'journey'
 
 class Oystercard
   attr_reader :balance
   attr_reader :journey_history
+  attr_reader :current_journey
 
   TOP_UP_MAX = 90
   MINIMUM_BALANCE = 1
@@ -20,18 +22,27 @@ class Oystercard
   end
 
   def in_journey?
-    return false if @journey_history.empty?
-    !@journey_history.last.include?(:exit_station)
+    !!@current_journey
   end
 
   def touch_in(station)
     raise 'Insufficient funds' if @balance < MINIMUM_BALANCE
-    journey_history << { :entry_station => station }
+    if in_journey?
+      @journey_history << @current_journey
+    end
+      @current_journey = Journey.new
+      @current_journey.start_journey(station)
   end
 
   def touch_out(station)
-    deduct MINIMUM_BALANCE
-    journey_history.last[:exit_station] = station
+
+    if !in_journey?
+      @current_journey = Journey.new
+    end
+    @current_journey.end_journey(station)
+    @journey_history << @current_journey
+    deduct @current_journey.fare
+    @current_journey = nil
   end
 
   private

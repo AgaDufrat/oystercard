@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 require 'oyster_card'
+require 'journey'
 
 describe Oystercard do
   let(:add_top_up_money) { subject.top_up(20) }
   let(:station) { double :station }
   min_balance = Oystercard::MINIMUM_BALANCE
+  min_fare = Journey::MINIMUM_FARE
+  penalty_fare = Journey::PENALTY_FARE
 
   context 'initialization' do
     it 'is expected to show a balance of 0 when created' do
@@ -47,7 +50,14 @@ describe Oystercard do
     it 'updates the journey history to record the entry station' do
       add_top_up_money
       subject.touch_in(:station)
-      expect(subject.journey_history.last[:entry_station]).to eq :station
+      expect(subject.current_journey.entry_station).to eq :station
+    end
+
+    it 'records an incomplete journey if did not touch out last time' do
+      add_top_up_money
+      subject.touch_in(:station)
+      subject.touch_in(:station)
+      expect(subject.journey_history.last.exit_station).to eq nil
     end
   end
 
@@ -59,17 +69,32 @@ describe Oystercard do
         change { subject.in_journey? }.from(true).to(false)
     end
 
-    it 'charges the minimum balance when the card is touched out' do
+    it 'charges the minimum fare when the card is touched out' do
       add_top_up_money
       subject.touch_in(:station)
-      expect { subject.touch_out(:station) }.to change { subject.balance }.by(-min_balance)
+      expect { subject.touch_out(:station) }.to change { subject.balance }.by(-min_fare)
+    end
+
+    it 'charges the penalty fare if the journey is incomplete' do
+      add_top_up_money
+      subject.touch_in(:station)
+      subject.touch_out(:station)
+      expect { subject.touch_out(:station) }.to change { subject.balance }.by(-penalty_fare)
     end
 
     it 'stores the exit station when touched out' do
       add_top_up_money
       subject.touch_in(:station)
       subject.touch_out(:station)
-      expect(subject.journey_history.last[:exit_station]).to eq :station
+      expect(subject.journey_history.last.exit_station).to eq :station
+    end
+
+    it 'records an incomplete journey if did not touch in last time' do
+      add_top_up_money
+      subject.touch_in(:station)
+      subject.touch_out(:station)
+      subject.touch_out(:station)
+      expect(subject.journey_history.last.entry_station).to eq nil
     end
   end
 end
